@@ -78,6 +78,8 @@ open class PulleyViewController: UIViewController, UIScrollViewDelegate, PulleyP
     
     private var dimmingViewTapRecognizer: UITapGestureRecognizer?
     
+    private let gripLayer = CAShapeLayer()
+    
     /// The current content view controller (shown behind the drawer).
     public fileprivate(set) var primaryContentViewController: UIViewController! {
         willSet {
@@ -343,6 +345,8 @@ open class PulleyViewController: UIViewController, UIScrollViewDelegate, PulleyP
             drawerBackgroundVisualEffectView.layer.cornerRadius = drawerCornerRadius
         }
         
+        drawerScrollView.layer.addSublayer(gripLayer)
+        
         drawerScrollView.addSubview(drawerContentContainer)
         
         primaryContentContainer.backgroundColor = UIColor.white
@@ -380,6 +384,27 @@ open class PulleyViewController: UIViewController, UIScrollViewDelegate, PulleyP
         }
         
         scrollViewDidScroll(drawerScrollView)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillShow), name: .UIKeyboardWillShow, object: nil)
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(keyboardWillHide), name: .UIKeyboardWillHide, object: nil)
+    }
+    
+    open func keyboardWillShow(notification: NSNotification) {
+        if let keyboardSize = (notification.userInfo?[UIKeyboardFrameBeginUserInfoKey] as? NSValue)?.cgRectValue {
+            let keyboardHeight = keyboardSize.height
+            
+            if keyboardHeight > 100 {
+                if let animationDuration = notification.userInfo?[UIKeyboardAnimationDurationUserInfoKey] as? Double {
+                    UIView.animate(withDuration: animationDuration, animations: { 
+                        self.setDrawerPosition(position: .open, animated: false)
+                    })
+                }
+            }
+        }
+    }
+    
+    open func keyboardWillHide(notification: NSNotification) {
     }
     
     override open func viewDidAppear(_ animated: Bool) {
@@ -394,7 +419,6 @@ open class PulleyViewController: UIViewController, UIScrollViewDelegate, PulleyP
         // Layout main content
         primaryContentContainer.frame = self.view.bounds
         backgroundDimmingView.frame = self.view.bounds
-        
         
         // Layout container
         var collapsedHeight:CGFloat = kPulleyDefaultCollapsedHeight
@@ -422,12 +446,20 @@ open class PulleyViewController: UIViewController, UIScrollViewDelegate, PulleyP
         }
         
         drawerContentContainer.frame = CGRect(x: 0, y: drawerScrollView.bounds.height - lowestStop, width: drawerScrollView.bounds.width, height: drawerScrollView.bounds.height + bounceOverflowMargin)
+
+        if UI_USER_INTERFACE_IDIOM() == .pad {
+            let offset = drawerScrollView.bounds.width/3.0
+            drawerContentContainer.frame = CGRect(x: offset/2, y: drawerScrollView.bounds.height - lowestStop, width: drawerScrollView.bounds.width-offset, height: drawerScrollView.bounds.height + bounceOverflowMargin)
+    
+        }
+        
         drawerBackgroundVisualEffectView?.frame = drawerContentContainer.frame
         drawerShadowView.frame = drawerContentContainer.frame
         drawerScrollView.contentSize = CGSize(width: drawerScrollView.bounds.width, height: (drawerScrollView.bounds.height - lowestStop) + drawerScrollView.bounds.height)
         
         // Update rounding mask and shadows
         let borderPath = UIBezierPath(roundedRect: drawerContentContainer.bounds, byRoundingCorners: [.topLeft, .topRight], cornerRadii: CGSize(width: drawerCornerRadius, height: drawerCornerRadius)).cgPath
+        
         
         let cardMaskLayer = CAShapeLayer()
         cardMaskLayer.path = borderPath
@@ -440,11 +472,28 @@ open class PulleyViewController: UIViewController, UIScrollViewDelegate, PulleyP
         // Make VC views match frames
         primaryContentViewController?.view.frame = primaryContentContainer.bounds
         drawerContentViewController?.view.frame = CGRect(x: drawerContentContainer.bounds.minX, y: drawerContentContainer.bounds.minY, width: drawerContentContainer.bounds.width, height: drawerContentContainer.bounds.height)
+        
+        gripLayer.fillColor = UIColor(white: 0.6, alpha: 0.6).cgColor
+        let gripCenter = ((drawerScrollView.bounds.size.width-37)/2)
+        let rectanglePath = UIBezierPath(roundedRect: CGRect(x: gripCenter, y: drawerContentContainer.frame.origin.y+6, width: 37, height: 5), cornerRadius: 2)
+        
+        gripLayer.path = rectanglePath.cgPath
+        
     }
     
     override open func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
+    }
+    
+    func drawGrip() {
+        //// Color Declarations
+        let color = UIColor(red: 0.60, green: 0.60, blue: 0.60, alpha: 0.600)
+        
+        //// Rectangle Drawing
+        let rectanglePath = UIBezierPath(roundedRect: CGRect(x: 2, y: 2, width: 37, height: 5), cornerRadius: 2)
+        color.setFill()
+        rectanglePath.fill()
     }
     
     // MARK: Configuration Updates
@@ -733,6 +782,7 @@ open class PulleyViewController: UIViewController, UIScrollViewDelegate, PulleyP
     
     func shouldTouchPassthroughScrollView(scrollView: PulleyPassthroughScrollView, point: CGPoint) -> Bool
     {
+        
         let contentDrawerLocation = drawerContentContainer.frame.origin.y
         
         if point.y < contentDrawerLocation

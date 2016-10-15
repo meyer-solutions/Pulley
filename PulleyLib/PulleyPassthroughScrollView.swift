@@ -22,10 +22,12 @@ class PulleyPassthroughScrollView: UIScrollView {
         
         if let touchDel = touchDelegate
         {
+            
             if touchDel.shouldTouchPassthroughScrollView(scrollView: self, point: point)
             {
                 return touchDel.viewToReceiveTouch(scrollView: self).hitTest(touchDel.viewToReceiveTouch(scrollView: self).convert(point, from: self), with: event)
             }
+            
         }
         
         return super.hitTest(point, with: event)
